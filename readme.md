@@ -508,8 +508,11 @@ systemctl status ungit
 
 ### 6.1. Postfix
 
+For some unknown reasons, main repo of RHEL doesn't support postfix-pcre. So that we need use 3rd repo.
+
 ```cmd
-dnf install postfix*
+rpm -Uvh http://mirror.ghettoforge.org/distributions/gf/el/8/testing/x86_64//postfix3-3.4.9-1.gf.el8.x86_64.rpm
+rpm -Uvh http://mirror.ghettoforge.org/distributions/gf/el/8/testing/x86_64//postfix3-pcre-3.4.9-1.gf.el8.x86_64.rpm
 ```
 
 Add new `catchall` user
