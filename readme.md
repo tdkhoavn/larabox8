@@ -1,10 +1,10 @@
-# Larabox8
+# LaraBOX8
 
 <!-- TOC -->
 
-- [Larabox8](#larabox8)
+- [LaraBOX8](#larabox8)
     - [1. Initial CentOS 8 Vagrant box](#1-initial-centos-8-vagrant-box)
-    - [2. Installing LAMP stack (2019-02-06)](#2-installing-lamp-stack-2019-02-06)
+    - [2. Installing LAMP stack](#2-installing-lamp-stack)
         - [2.1. Prerequisites](#21-prerequisites)
         - [2.2 Apache 2.4.37](#22-apache-2437)
             - [Installing Apache](#installing-apache)
@@ -18,9 +18,12 @@
     - [5. Installing Git 2.18.2 and Ungit 0.10.3](#5-installing-git-2182-and-ungit-0103)
         - [Installing Git](#installing-git)
         - [Installing Ungit](#installing-ungit)
-    - [6. Rainloop + Dovecot + Postfix (~Not yet~)](#6-rainloop--dovecot--postfix-not-yet)
+    - [6. Rainloop + Dovecot + Postfix](#6-rainloop--dovecot--postfix)
+        - [6.1. Postfix](#61-postfix)
+        - [6.2. Dovecot](#62-dovecot)
+        - [6.3. Install Rainloop](#63-install-rainloop)
     - [7. Adminer 4.7.6](#7-adminer-476)
-    - [8. phpMyAdmin (~Not yet~)](#8-phpmyadmin-not-yet)
+    - [8. phpMyAdmin 5.0.1](#8-phpmyadmin-501)
     - [7. Samba 4 for File Sharing (~Not yet~)](#7-samba-4-for-file-sharing-not-yet)
 
 <!-- /TOC -->
@@ -111,7 +114,7 @@ vim /etc/selinux/config
 
 Change `SELINUX=enforcing` to `SELINUX=disabled` and reboot system. Run command `sestatus` to check status.
 
-## 2. Installing LAMP stack (2019-02-06)
+## 2. Installing LAMP stack
 
 ### 2.1. Prerequisites
 
@@ -501,7 +504,163 @@ systemctl start ungit
 systemctl status ungit
 ```
 
-## 6. Rainloop + Dovecot + Postfix (~Not yet~)
+## 6. Rainloop + Dovecot + Postfix
+
+### 6.1. Postfix
+
+```cmd
+dnf install postfix*
+```
+
+Add new `catchall` user
+
+```cmd
+adduser catchall
+passwd catchall
+```
+
+PCRE regrex
+
+```cmd
+vim /etc/aliases.regexp
+
+# Add below contents
+/(?!^root$|^catchall$)^.*$/ catchall
+```
+
+Edit `main.cf` file
+
+```cmd
+cd /etc/postfix/
+cp main.cf main.cf.bak
+vim main.cf
+```
+
+Add below contents
+
+```conf
+# uncomment
+home_mailbox = Maildir/
+
+# change this line
+alias_maps = hash:/etc/aliases, pcre:/etc/aliases.regexp
+
+# add newline
+transport_maps = pcre:/etc/postfix/transport_maps
+```
+
+Edit `/etc/aliases` file
+
+```cmd
+# find postmaster:\troot replace by postmaster:\tcatchall
+sed -i "s/postmaster:\troot/postmaster:\tcatchall/" /etc/aliases
+```
+
+Create `/etc/postfix/transport_maps` file
+
+```cmd
+vim /etc/postfix/transport_maps
+
+# Add below contents
+/^.*@.*$/ local
+```
+
+### 6.2. Dovecot
+
+```cmd
+dnf install dovecot
+```
+
+Edit `10-mail.conf` file
+
+```conf
+vim /etc/dovecot/conf.d/10-mail.conf
+
+# Add below contents
+mail_location = maildir:~/Maildir
+```
+
+Reload the services
+
+```cmd
+postalias /etc/aliases
+postmap /etc/postfix/transport
+systemctl restart postfix
+systemctl restart dovecot
+systemctl enable dovecot
+```
+
+### 6.3. Install Rainloop
+
+Download the latest rainloop
+
+```cmd
+curl -o rainloop-latest.zip https://www.rainloop.net/repository/webmail/rainloop-latest.zip
+unzip
+```
+
+Install unzip and extract the archive
+
+```cmd
+dnf install unzip
+mkdir -p /var/www/vhosts/rainloop
+unzip rainloop-latest.zip -d /var/www/vhosts/rainloop/
+```
+
+Config rainloop folder
+
+```cmd
+find /var/www/vhosts/rainloop -type d -exec chmod 755 {} \;
+find /var/www/vhosts/rainloop -type f -exec chmod 644 {} \;
+chown -R apache:apache /var/www/vhosts/rainloop/
+```
+
+Configure Apache web Server
+
+```cmd
+vim /etc/httpd/conf.d/vhosts/rainloop.conf
+```
+
+Edit the `rainloop.conf`
+
+```conf
+Alias /rainloop /var/www/vhosts/rainloop
+<Directory "/var/www/vhosts/rainloop">
+    Options Indexes FollowSymLinks MultiViews
+    AllowOverride all
+    Require all granted
+</Directory>
+```
+
+Restart Apache service
+
+```cmd
+systemctl restart httpd
+```
+
+Config the rainloop
+
+Access domain `vagrant_ipaddress/rainloop/?admin` and login with info `admin|12345`
+
+Config `Domains` sections
+
+![rainloop](/img/Screenshot&#32;from&#32;2019-08-19&#32;22-21-33.png)
+
+Config `Login` section
+
+![rainloop](/img/Screenshot&#32;from&#32;2019-08-19&#32;22-14-00.png)
+
+Install `mailx`
+
+```cmd
+dnf install mailx
+```
+
+Send the test mail. Press `Ctr + D` to send mail.
+
+```cmd
+mail -s "This is Subject" -r "sender<sender@mail.com>" someone@example.com
+```
 
 ## 7. Adminer 4.7.6
 
@@ -533,12 +692,77 @@ chown -R apache:apache /var/www/vhosts/adminer
 chmod -R 755 /var/www/vhosts/adminer
 ```
 
-Reload Apache
+Restart Apache service
 
 ```cmd
 systemctl restart httpd
 ```
 
-## 8. phpMyAdmin (~Not yet~)
+## 8. phpMyAdmin 5.0.1
+
+Download the latest release
+
+```cmd
+curl -o phpMyAdmin-5.0.1-english.tar.gz https://files.phpmyadmin.net/phpMyAdmin/5.0.1/phpMyAdmin-5.0.1-english.tar.gz
+```
+
+Extract downloaded archive
+
+```cmd
+tar xvf phpMyAdmin-5.0.1-english.tar.gz
+```
+
+Move the folder to `/usr/share/phpmyadmin`
+
+```cmd
+mv phpMyAdmin-5.0.1-english*/ /usr/share/phpmyadmin
+```
+
+Create directory for phpMyAdmin temp files.
+
+```cmd
+mkdir -p /var/lib/phpmyadmin/tmp
+chown -R apache:apache /var/lib/phpmyadmin
+```
+
+Create directory for phpMyAdmin configuration files.
+
+```cmd
+mkdir /etc/phpmyadmin/
+```
+
+Create phpMyAdmin configuration file.
+
+```cmd
+cp /usr/share/phpmyadmin/config.sample.inc.php /usr/share/phpmyadmin/config.inc.php
+```
+
+Edit the file `config.inc.php`
+
+```conf
+# Set a secret passphrase – Needs to be 32 chars long
+$cfg['blowfish_secret'] = 'TPfb1qcZoAzrO8UtGBD4qC6wMjc9jQoS';
+
+# Configure temp directory
+$cfg['TempDir'] = '/var/lib/phpmyadmin/tmp';
+```
+
+Configure Apache web Server
+
+```cmd
+vim /etc/httpd/conf.d/vhosts/phpmyadmin.conf
+```
+
+Edit the `phpmyadmin.conf`
+
+```conf
+Alias /phpmyadmin /usr/share/phpmyadmin/
+Alias /phpmyAdmin /usr/share/phpmyadmin/
+<Directory "usr/share/phpmyadmin">
+    Options Indexes FollowSymLinks MultiViews
+    AllowOverride all
+    Require all granted
+</Directory>
+```
 
 ## 7. Samba 4 for File Sharing (~Not yet~)
