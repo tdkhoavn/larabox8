@@ -24,7 +24,7 @@
         - [6.3. Install Rainloop](#63-install-rainloop)
     - [7. Adminer 4.7.6](#7-adminer-476)
     - [8. phpMyAdmin 5.0.1](#8-phpmyadmin-501)
-    - [7. Samba 4 for File Sharing (~Not yet~)](#7-samba-4-for-file-sharing-not-yet)
+    - [7. Samba 4 for File Sharing](#7-samba-4-for-file-sharing)
 
 <!-- /TOC -->
 
@@ -768,4 +768,45 @@ Alias /phpmyAdmin /usr/share/phpmyadmin/
 </Directory>
 ```
 
-## 7. Samba 4 for File Sharing (~Not yet~)
+## 7. Samba 4 for File Sharing
+
+Install `Samba`
+
+```cmd
+dnf install samba samba-client
+```
+
+Startup and enable `smb` and `nmb` daemons at boot
+
+```cmd
+systemctl enable smb
+systemctl enable nmb
+systemctl start smb
+systemctl start nmb
+```
+
+Configuring a shared directory accessible by guests
+
+Edit the `/etc/samba/smb.conf`
+
+```cmd
+vim /etc/samba/smb.conf
+[global]
+        workgroup = WORKGROUP
+        map to guest = bad user
+        force user = root
+[vhosts]
+        path = /var/www/vhosts
+        browsable = yes
+        writable = yes
+        guest ok = yes
+        read only = no
+        follow symlinks = yes
+```
+
+Restart `smb` daemons
+
+```cmd
+systemctl restart smb
+systemctl restart nmb
+```
