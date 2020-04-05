@@ -812,6 +812,8 @@ systemctl restart nmb
 
 ## 10. Create an HTTPS certificate for localhost domains
 
+Reference: https://gist.github.com/namdp06/f91c4fe0942845a4c775a4f5aafeab14
+
 Generate `RootCA.pem`, `RootCA.key` & `RootCA.crt`
 
 ```cmd
