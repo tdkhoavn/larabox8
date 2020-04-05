@@ -863,3 +863,13 @@ SSLEngine on
 SSLCertificateFile /etc/pki/tls/certs/code9_test.crt
 SSLCertificateKeyFile /etc/pki/tls/private/code9_test.key
 ```
+
+Trust the local CA
+
+Linux: Chromium
+
+![chromium ssl](/img/Screenshot&#32;from&#32;2020-04-05&#32;01-30-50.png)
+
+Linux: Firefox
+
+![firefox ssl](/img/Screenshot&#32;from&#32;2020-04-05&#32;10-13-31.png)
