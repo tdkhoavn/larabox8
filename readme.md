@@ -1,30 +1,30 @@
 # LaraBOX8
-
 <!-- TOC -->
 
 - [LaraBOX8](#larabox8)
-    - [1. Initial CentOS 8 Vagrant box](#1-initial-centos-8-vagrant-box)
-    - [2. Installing LAMP stack](#2-installing-lamp-stack)
-        - [2.1. Prerequisites](#21-prerequisites)
-        - [2.2 Apache 2.4.37](#22-apache-2437)
-            - [Installing Apache](#installing-apache)
-            - [Setting up Virtual Hosts](#setting-up-virtual-hosts)
-        - [2.3 MySQL 8.0.19](#23-mysql-8019)
-            - [Installing MySQL](#installing-mysql)
-            - [Secure MySQL Server](#secure-mysql-server)
-        - [2.4 PHP 7.4.2](#24-php-742)
-    - [3. Installing Composer 1.9.3](#3-installing-composer-193)
-    - [4. Installing NodeJS 10.16.3-2 and npm](#4-installing-nodejs-10163-2-and-npm)
-    - [5. Installing Git 2.18.2 and Ungit 0.10.3](#5-installing-git-2182-and-ungit-0103)
-        - [Installing Git](#installing-git)
-        - [Installing Ungit](#installing-ungit)
-    - [6. Rainloop + Dovecot + Postfix](#6-rainloop--dovecot--postfix)
-        - [6.1. Postfix](#61-postfix)
-        - [6.2. Dovecot](#62-dovecot)
-        - [6.3. Install Rainloop](#63-install-rainloop)
-    - [7. Adminer 4.7.6](#7-adminer-476)
-    - [8. phpMyAdmin 5.0.1](#8-phpmyadmin-501)
-    - [7. Samba 4 for File Sharing](#7-samba-4-for-file-sharing)
+  - [1. Initial CentOS 8 Vagrant box](#1-initial-centos-8-vagrant-box)
+  - [2. Installing LAMP stack](#2-installing-lamp-stack)
+    - [2.1. Prerequisites](#21-prerequisites)
+    - [2.2 Apache 2.4.37](#22-apache-2437)
+      - [Installing Apache](#installing-apache)
+      - [Setting up Virtual Hosts](#setting-up-virtual-hosts)
+    - [2.3 MySQL 8.0.19](#23-mysql-8019)
+      - [Installing MySQL](#installing-mysql)
+      - [Secure MySQL Server](#secure-mysql-server)
+    - [2.4 PHP 7.4.2](#24-php-742)
+  - [3. Installing Composer 1.9.3](#3-installing-composer-193)
+  - [4. Installing NodeJS 10.16.3-2 and npm](#4-installing-nodejs-10163-2-and-npm)
+  - [5. Installing Git 2.18.2 and Ungit 0.10.3](#5-installing-git-2182-and-ungit-0103)
+    - [Installing Git](#installing-git)
+    - [Installing Ungit](#installing-ungit)
+  - [6. Rainloop + Dovecot + Postfix](#6-rainloop--dovecot--postfix)
+    - [6.1. Postfix](#61-postfix)
+    - [6.2. Dovecot](#62-dovecot)
+    - [6.3. Install Rainloop](#63-install-rainloop)
+  - [7. Adminer 4.7.6](#7-adminer-476)
+  - [8. phpMyAdmin 5.0.1](#8-phpmyadmin-501)
+  - [9. Samba 4 for File Sharing](#9-samba-4-for-file-sharing)
+  - [10. Create an HTTPS certificate for localhost domains](#10-create-an-https-certificate-for-localhost-domains)
 
 <!-- /TOC -->
 
@@ -599,7 +599,6 @@ Download the latest rainloop
 
 ```cmd
 curl -o rainloop-latest.zip https://www.rainloop.net/repository/webmail/rainloop-latest.zip
-unzip
 ```
 
 Install unzip and extract the archive
@@ -768,7 +767,7 @@ Alias /phpmyAdmin /usr/share/phpmyadmin/
 </Directory>
 ```
 
-## 7. Samba 4 for File Sharing
+## 9. Samba 4 for File Sharing
 
 Install `Samba`
 
@@ -809,4 +808,56 @@ Restart `smb` daemons
 ```cmd
 systemctl restart smb
 systemctl restart nmb
+```
+
+## 10. Create an HTTPS certificate for localhost domains
+
+Generate `RootCA.pem`, `RootCA.key` & `RootCA.crt`
+
+```cmd
+openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout RootCA.key -out RootCA.pem -subj "/C=US/CN=Code9-Test-Root-CA"
+openssl x509 -outform pem -in RootCA.pem -out RootCA.crt
+```
+
+Domain name certificate
+
+First, create a file `domains.ext` that lists all your local domains:
+
+```ext
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = localhost
+DNS.2 = code9.test
+```
+
+Generate `code9_test.key`, `code9_test.csr`, and `code9_test.crt`:
+
+
+```cmd
+openssl req -new -nodes -newkey rsa:2048 -keyout code9_test.key -out code9_test.csr -subj "/C=VN/ST=HCM/L=HCM/O=Code9-Certificates/CN=code9.test"
+openssl x509 -req -sha256 -days 1024 -in code9_test.csr -CA RootCA.pem -CAkey RootCA.key -CAcreateserial -extfile domains.ext -out code9_test.crt
+```
+
+Install Apache `mod_ssl`
+
+```cmd
+sudo dnf install mod_ssl
+```
+
+Copy `code9_test.crt`, `code9_test.key` to ssl config folder
+
+```cmd
+cp code9_test.crt /etc/pki/tls/certs/code9_test.crt
+cp code9_test.key /etc/pki/tls/private/code9_test.key
+```
+
+You can now configure your Apache:
+
+```conf
+SSLEngine on
+SSLCertificateFile /etc/pki/tls/certs/code9_test.crt
+SSLCertificateKeyFile /etc/pki/tls/private/code9_test.key
 ```
